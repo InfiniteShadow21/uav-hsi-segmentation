@@ -740,6 +740,126 @@ def calculate_ndvi(hyperspectral_data):
     return None
 
 
+def calculate_savi(hyperspectral_data, L=0.5):
+    """Calculează SAVI (Soil-Adjusted Vegetation Index) - pentru zonele cu sol expus"""
+    if len(hyperspectral_data.shape) == 3:
+        h, w, bands = hyperspectral_data.shape
+
+        if bands >= 150:
+            nir_band = int(bands * 0.8)  # ~800nm
+            red_band = int(bands * 0.5)  # ~650nm
+        else:
+            nir_band = min(bands - 1, 80)
+            red_band = min(bands - 1, 50)
+
+        nir = hyperspectral_data[:, :, nir_band].astype(float)
+        red = hyperspectral_data[:, :, red_band].astype(float)
+
+        # SAVI = (NIR - Red) / (NIR + Red + L) * (1 + L)
+        savi = np.zeros_like(nir)
+        valid_mask = (nir + red + L) > 0
+        savi[valid_mask] = ((nir[valid_mask] - red[valid_mask]) / (nir[valid_mask] + red[valid_mask] + L)) * (1 + L)
+
+        return savi
+    return None
+
+
+def calculate_ndwi(hyperspectral_data):
+    """Calculează NDWI (Normalized Difference Water Index) - pentru stresul hidric"""
+    if len(hyperspectral_data.shape) == 3:
+        h, w, bands = hyperspectral_data.shape
+
+        if bands >= 150:
+            nir_band = int(bands * 0.8)  # ~800nm
+            swir_band = int(bands * 0.9)  # ~900nm (aproximare SWIR)
+        else:
+            nir_band = min(bands - 1, 80)
+            swir_band = min(bands - 1, 90)
+
+        nir = hyperspectral_data[:, :, nir_band].astype(float)
+        swir = hyperspectral_data[:, :, swir_band].astype(float)
+
+        # NDWI = (NIR - SWIR) / (NIR + SWIR)
+        ndwi = np.zeros_like(nir)
+        valid_mask = (nir + swir) > 0
+        ndwi[valid_mask] = (nir[valid_mask] - swir[valid_mask]) / (nir[valid_mask] + swir[valid_mask])
+
+        return ndwi
+    return None
+
+
+def calculate_gndvi(hyperspectral_data):
+    """Calculează GNDVI (Green NDVI) - sensibil la clorofilă"""
+    if len(hyperspectral_data.shape) == 3:
+        h, w, bands = hyperspectral_data.shape
+
+        if bands >= 150:
+            nir_band = int(bands * 0.8)  # ~800nm
+            green_band = int(bands * 0.35)  # ~550nm
+        else:
+            nir_band = min(bands - 1, 80)
+            green_band = min(bands - 1, 35)
+
+        nir = hyperspectral_data[:, :, nir_band].astype(float)
+        green = hyperspectral_data[:, :, green_band].astype(float)
+
+        # GNDVI = (NIR - Green) / (NIR + Green)
+        gndvi = np.zeros_like(nir)
+        valid_mask = (nir + green) > 0
+        gndvi[valid_mask] = (nir[valid_mask] - green[valid_mask]) / (nir[valid_mask] + green[valid_mask])
+
+        return gndvi
+    return None
+
+
+def interpret_vegetation_index(value, index_type):
+    """Interpretează valorile indicilor de vegetație cu recomandări practice"""
+    interpretations = {
+        'NDVI': {
+            (0.0, 0.2): {"status": "🟫 Sol sau apă", "health": "N/A", "action": "Verifică tipul suprafeței"},
+            (0.2, 0.4): {"status": "🟨 Vegetație rară", "health": "Slabă",
+                         "action": "Necesită îngrijire sau replantare"},
+            (0.4, 0.6): {"status": "🟩 Vegetație moderată", "health": "Bună", "action": "Monitorizează dezvoltarea"},
+            (0.6, 0.8): {"status": "🌱 Vegetație densă", "health": "Foarte bună",
+                         "action": "Condiții optime de creștere"},
+            (0.8, 1.0): {"status": "🌿 Vegetație maximă", "health": "Excelentă", "action": "Maturitate completă"}
+        },
+        'EVI': {
+            (0.0, 0.2): {"status": "🟫 Fără vegetație", "health": "N/A", "action": "Sol expus sau apă"},
+            (0.2, 0.4): {"status": "🟨 Vegetație inițială", "health": "Slabă", "action": "Monitorizează creșterea"},
+            (0.4, 0.6): {"status": "🟩 Vegetație activă", "health": "Bună", "action": "Dezvoltare normală"},
+            (0.6, 0.8): {"status": "🌱 Vegetație viguroasă", "health": "Foarte bună", "action": "Condiții excelente"},
+            (0.8, 1.2): {"status": "🌿 Vegetație optimă", "health": "Excelentă", "action": "Productivitate maximă"}
+        },
+        'SAVI': {
+            (0.0, 0.2): {"status": "🟫 Sol dominant", "health": "N/A", "action": "Acoperire vegetală minimă"},
+            (0.2, 0.4): {"status": "🟨 Vegetație cu sol", "health": "Moderată", "action": "Îmbunătățește acoperirea"},
+            (0.4, 0.6): {"status": "🟩 Echilibru vegetație-sol", "health": "Bună", "action": "Condiții acceptabile"},
+            (0.6, 0.8): {"status": "🌱 Vegetație predominantă", "health": "Foarte bună", "action": "Acoperire optimă"}
+        },
+        'NDWI': {
+            (-1.0, 0.0): {"status": "🟫 Stres hidric sever", "health": "Critică", "action": "URGENT: Irigare necesară"},
+            (0.0, 0.2): {"status": "🟨 Stres hidric moderat", "health": "Slabă", "action": "Planifică irigarea"},
+            (0.2, 0.4): {"status": "🟩 Hidratare adecvată", "health": "Bună", "action": "Monitorizează periodic"},
+            (0.4, 0.6): {"status": "🌱 Hidratare optimă", "health": "Foarte bună", "action": "Condiții ideale"},
+            (0.6, 1.0): {"status": "💧 Surplus hidric", "health": "Atenție", "action": "Verifică drenajul"}
+        },
+        'GNDVI': {
+            (0.0, 0.3): {"status": "🟫 Clorofilă redusă", "health": "Slabă", "action": "Verifică nutrienții"},
+            (0.3, 0.5): {"status": "🟨 Clorofilă moderată", "health": "Moderată", "action": "Monitorizează nutriția"},
+            (0.5, 0.7): {"status": "🟩 Clorofilă bună", "health": "Bună", "action": "Dezvoltare sănătoasă"},
+            (0.7, 0.9): {"status": "🌱 Clorofilă excelentă", "health": "Foarte bună", "action": "Fotosinteza optimă"}
+        }
+    }
+
+    if index_type in interpretations:
+        for (min_val, max_val), interpretation in interpretations[index_type].items():
+            if min_val <= value < max_val:
+                return interpretation
+
+    return {"status": "🔍 Valoare neașteptată", "health": "Neclar", "action": "Verifică calculele"}
+
+
 def calculate_evi(hyperspectral_data):
     """Calculează EVI (Enhanced Vegetation Index)"""
     if len(hyperspectral_data.shape) == 3:
@@ -1232,115 +1352,147 @@ if 'rs_data' in st.session_state:
         st.session_state.indices_calculated = True
 
     if 'indices_calculated' in st.session_state and st.session_state.indices_calculated:
-        st.subheader("🌿 Indici de Vegetație")
+        st.subheader("🌿 Analiză Completă a Vegetației")
 
-        with st.spinner("📊 Se calculează indicii de vegetație pentru dataset-ul UAV-HSI..."):
+        with st.spinner("📊 Se calculează indicii avansați de vegetație pentru analiza UAV-HSI..."):
+            # Calculează toți indicii
             ndvi = calculate_ndvi(st.session_state.rs_data)
             evi = calculate_evi(st.session_state.rs_data)
+            savi = calculate_savi(st.session_state.rs_data)
+            ndwi = calculate_ndwi(st.session_state.rs_data)
+            gndvi = calculate_gndvi(st.session_state.rs_data)
+
+            # Salvează în session state
             st.session_state.ndvi = ndvi
             st.session_state.evi = evi
+            st.session_state.savi = savi
+            st.session_state.ndwi = ndwi
+            st.session_state.gndvi = gndvi
 
-        # Afișare indici
-        col9, col10, col11 = st.columns(3)
+        # Afișare indici în grid 2x3
+        col1, col2, col3 = st.columns(3)
+        col4, col5, col6 = st.columns(3)
 
-        with col9:
-            st.markdown("**🌱 NDVI (Normalized Difference Vegetation Index)**")
-            if st.session_state.ndvi is not None:
-                fig, ax = plt.subplots(figsize=(7, 6))
-                im = ax.imshow(st.session_state.ndvi, cmap='RdYlGn', vmin=-1, vmax=1, aspect='equal')
-                ax.set_title("NDVI - Indice Vegetație\n(Verde = Vegetație sănătoasă)", fontsize=12)
-                ax.axis('off')
+        indices_data = [
+            ("NDVI", "🌱 Vegetație Generală", ndvi, "RdYlGn", col1),
+            ("EVI", "🌿 Vegetație Îmbunătățită", evi, "RdYlGn", col2),
+            ("SAVI", "🟫 Ajustat pentru Sol", savi, "RdYlBu", col3),
+            ("NDWI", "💧 Stres Hidric", ndwi, "Blues", col4),
+            ("GNDVI", "🍃 Conținut Clorofilă", gndvi, "Greens", col5)
+        ]
 
-                plt.tight_layout()
-                cbar = plt.colorbar(im, ax=ax, shrink=0.7, aspect=20, pad=0.1)
-                cbar.set_label('Valoare NDVI', fontsize=10)
+        for index_name, title, index_data, colormap, col in indices_data:
+            if index_data is not None:
+                with col:
+                    st.markdown(f"**{title}**")
 
-                st.pyplot(fig, use_container_width=True)
-                plt.close()
+                    # Calculează statistici
+                    mean_val = np.nanmean(index_data)
+                    std_val = np.nanstd(index_data)
+                    min_val = np.nanmin(index_data)
+                    max_val = np.nanmax(index_data)
 
-        with col10:
-            st.markdown("**🌿 EVI (Enhanced Vegetation Index)**")
-            if st.session_state.evi is not None:
-                fig, ax = plt.subplots(figsize=(7, 6))
-                im = ax.imshow(st.session_state.evi, cmap='RdYlGn', vmin=-1, vmax=2, aspect='equal')
-                ax.set_title("EVI - Indice Îmbunătățit\n(Corectat pentru sol)", fontsize=12)
-                ax.axis('off')
+                    # Interpretare automată
+                    interpretation = interpret_vegetation_index(mean_val, index_name)
 
-                plt.tight_layout()
-                cbar = plt.colorbar(im, ax=ax, shrink=0.7, aspect=20, pad=0.1)
-                cbar.set_label('Valoare EVI', fontsize=10)
+                    # Afișează imaginea
+                    fig, ax = plt.subplots(figsize=(4, 3))
+                    vmin, vmax = -1, 1 if index_name in ['NDVI', 'NDWI', 'GNDVI'] else (0,
+                                                                                        2 if index_name == 'EVI' else 1)
+                    im = ax.imshow(index_data, cmap=colormap, vmin=vmin, vmax=vmax, aspect='equal')
+                    ax.set_title(f"{index_name}", fontsize=10, pad=5)
+                    ax.axis('off')
 
-                st.pyplot(fig, use_container_width=True)
-                plt.close()
+                    plt.tight_layout()
+                    st.pyplot(fig, use_container_width=True)
+                    plt.close()
 
-        with col11:
-            # Statistici pentru indici
-            st.markdown("**📊 Analiză Statistică**")
+                    # Statistici compacte
+                    st.write(f"**Mediu:** {mean_val:.3f}")
+                    st.write(f"**Range:** {min_val:.3f} - {max_val:.3f}")
 
-            if st.session_state.ndvi is not None:
-                ndvi_mean = np.nanmean(st.session_state.ndvi)
-                ndvi_std = np.nanstd(st.session_state.ndvi)
+                    # Status cu culoare
+                    status_color = "green" if interpretation["health"] in ["Foarte bună", "Excelentă", "Bună"] else \
+                        "orange" if interpretation["health"] == "Moderată" else "red"
+                    st.markdown(f"**Status:** :{status_color}[{interpretation['status']}]")
+                    st.markdown(f"**Acțiune:** {interpretation['action']}")
 
-                st.write("**NDVI Statistics:**")
-                st.write(f"• **Mediu:** {ndvi_mean:.3f}")
-                st.write(f"• **Deviație std:** {ndvi_std:.3f}")
-                st.write(f"• **Minim:** {np.nanmin(st.session_state.ndvi):.3f}")
-                st.write(f"• **Maxim:** {np.nanmax(st.session_state.ndvi):.3f}")
+        # Rezumat general în coloana 6
+        with col6:
+            st.markdown("**📊 Rezumat General**")
 
-                # Interpretare
-                if ndvi_mean > 0.6:
-                    st.success("🌱 Vegetație densă și sănătoasă")
-                elif ndvi_mean > 0.3:
-                    st.info("🌿 Vegetație moderată")
+            # Calculează media tuturor indicilor pentru evaluare generală
+            all_means = []
+            if ndvi is not None: all_means.append(np.nanmean(ndvi))
+            if evi is not None: all_means.append(np.nanmean(evi))
+            if savi is not None: all_means.append(np.nanmean(savi))
+
+            if all_means:
+                overall_mean = np.mean(all_means)
+                overall_interp = interpret_vegetation_index(overall_mean, 'NDVI')
+
+                st.metric("Sănătate Generală", f"{overall_mean:.3f}")
+                st.markdown(f"**{overall_interp['status']}**")
+                st.markdown(f"*{overall_interp['action']}*")
+
+                # Recomandări specifice pentru agricultură
+                st.markdown("**🚜 Recomandări Agricole:**")
+                if overall_mean > 0.6:
+                    st.success("✅ Culturile sunt în stare excelentă")
+                    st.write("• Continuă programul actual")
+                    st.write("• Monitorizează pentru recoltare")
+                elif overall_mean > 0.4:
+                    st.info("ℹ️ Culturile sunt în dezvoltare")
+                    st.write("• Asigură-te de nutriție adecvată")
+                    st.write("• Monitorizează irigarea")
                 else:
-                    st.warning("🟫 Vegetație rară sau sol expus")
+                    st.warning("⚠️ Culturile necesită atenție")
+                    st.write("• Verifică sistemul de irigare")
+                    st.write("• Analizează nutrienții din sol")
+                    st.write("• Investighează posibile boli")
 
-            if st.session_state.evi is not None:
-                evi_mean = np.nanmean(st.session_state.evi)
-                evi_std = np.nanstd(st.session_state.evi)
-
-                st.write("**EVI Statistics:**")
-                st.write(f"• **Mediu:** {evi_mean:.3f}")
-                st.write(f"• **Deviație std:** {evi_std:.3f}")
-                st.write(f"• **Minim:** {np.nanmin(st.session_state.evi):.3f}")
-                st.write(f"• **Maxim:** {np.nanmax(st.session_state.evi):.3f}")
-
-        # Analiză combinată NDVI-EVI
-        if 'ndvi' in st.session_state and 'evi' in st.session_state:
+        # Analiză comparativă cu tipurile de culturi
+        if 'gt_data' in st.session_state and ndvi is not None:
             st.markdown("---")
-            st.markdown("**🔬 Analiză Combinată NDVI-EVI pentru Caracterizarea Culturilor**")
+            st.markdown("**🔬 Analiză per Tipuri de Culturi Identificate**")
 
-            # Calculează corelația
-            ndvi_flat = st.session_state.ndvi.flatten()
-            evi_flat = st.session_state.evi.flatten()
+            unique_classes = np.unique(st.session_state.gt_data)
+            vegetatie_classes = [2, 4, 5, 6, 7, 15, 22]  # Clase de vegetație verde
 
-            # Elimină NaN-urile
-            valid_mask = ~(np.isnan(ndvi_flat) | np.isnan(evi_flat))
-            ndvi_valid = ndvi_flat[valid_mask]
-            evi_valid = evi_flat[valid_mask]
+            found_vegetation = [cls for cls in unique_classes if cls in vegetatie_classes and cls < 30]
 
-            if len(ndvi_valid) > 0:
-                correlation = np.corrcoef(ndvi_valid, evi_valid)[0, 1]
-                st.info(
-                    f"📈 Corelația NDVI-EVI: {correlation:.3f} (valori apropiate de 1 indică consistență între indici)")
+            if found_vegetation:
+                crop_analysis = []
+                for cls in found_vegetation[:5]:  # Primele 5 clase
+                    mask = st.session_state.gt_data == cls
+                    if np.sum(mask) > 100:  # Doar clase cu suficienți pixeli
+                        class_ndvi = np.nanmean(ndvi[mask])
+                        class_name = UAV_HSI_CLASSES[cls]["name_ro"]
+                        class_color = UAV_HSI_CLASSES[cls]["color"]
+                        interp = interpret_vegetation_index(class_ndvi, 'NDVI')
 
-                # Interpretare pe tipuri de culturi identificate
-                if 'gt_data' in st.session_state:
-                    unique_classes = np.unique(st.session_state.gt_data)
-                    vegetatie_classes = [2, 4, 5, 6, 7, 15, 22]  # Clase de vegetație verde
+                        crop_analysis.append({
+                            'name': class_name,
+                            'color': class_color,
+                            'ndvi': class_ndvi,
+                            'status': interp['status'],
+                            'health': interp['health']
+                        })
 
-                    found_vegetation = [cls for cls in unique_classes if cls in vegetatie_classes and cls < 30]
+                if crop_analysis:
+                    # Sortează după NDVI
+                    crop_analysis.sort(key=lambda x: x['ndvi'], reverse=True)
 
-                    if found_vegetation:
-                        st.markdown("**🌱 Analiza vegetației identificate:**")
+                    st.markdown("**🏆 Ranking Sănătate Culturi:**")
+                    for i, crop in enumerate(crop_analysis):
+                        color_square = f'<span style="display:inline-block; width:12px; height:12px; background-color:{crop["color"]}; border:1px solid #333; margin-right:5px; vertical-align:middle;"></span>'
+                        rank_emoji = "🥇" if i == 0 else "🥈" if i == 1 else "🥉" if i == 2 else "📍"
+                        health_color = "green" if crop["health"] in ["Foarte bună", "Excelentă"] else "orange" if crop[
+                                                                                                                      "health"] == "Bună" else "red"
 
-                        for cls in found_vegetation[:5]:  # Primele 5 clase
-                            class_name = UAV_HSI_CLASSES[cls]["name_ro"]
-                            color = UAV_HSI_CLASSES[cls]["color"]
-                            color_square = f'<span style="display:inline-block; width:12px; height:12px; background-color:{color}; border:1px solid #333; margin-right:5px; vertical-align:middle;"></span>'
-
-                            st.markdown(f"{color_square} **{class_name}** - Vegetație activă detectată",
-                                        unsafe_allow_html=True)
+                        st.markdown(
+                            f"{rank_emoji} {color_square} **{crop['name']}** - NDVI: {crop['ndvi']:.3f} - :{health_color}[{crop['status']}]",
+                            unsafe_allow_html=True)
 
 else:
     # Stare inițială - nu e încărcată nicio imagine
