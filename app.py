@@ -1,6 +1,8 @@
 import streamlit as st
 import numpy as np
 import os
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from PIL import Image
 import io
