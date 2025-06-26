@@ -35,7 +35,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# CSS pentru sidebar mai îngust + îmbunătățiri layout
+# CSS pentru sidebar mai îngust
 st.markdown("""
 <style>
     .css-1d391kg {  /* Sidebar container */
@@ -47,58 +47,11 @@ st.markdown("""
     .css-17eq0hr {  /* Sidebar când e deschis */
         width: 220px !important;
     }
-
-    /* Îmbunătățiri pentru tabs */
-    .main-tab {
-        background: #f8f9fa;
-        padding: 20px;
-        border-radius: 10px;
-        margin: 10px 0;
-    }
-
-    /* Headers pentru secțiuni */
-    .section-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 15px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        text-align: center;
-        font-size: 1.2em;
-        font-weight: bold;
-    }
-
-    /* Separatori subtili */
-    .divider {
-        height: 2px;
-        background: linear-gradient(90deg, transparent, #dee2e6, transparent);
-        margin: 25px 0;
-    }
-
-    /* Executive summary styling */
-    .executive-summary {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        padding: 20px;
-        border-radius: 15px;
-        color: white;
-        margin: 20px 0;
-    }
-
-    /* Metric cards */
-    .metric-card {
-        background: white;
-        padding: 15px;
-        border-radius: 8px;
-        border: 1px solid #e9ecef;
-        text-align: center;
-        margin: 10px 5px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
 </style>
 """, unsafe_allow_html=True)
 
 # ===================================================================
-# MAPAREA CLASELOR UAV-HSI CU CULORI OPTIMIZATE (PĂSTREZ IDENTICĂ)
+# MAPAREA CLASELOR UAV-HSI CU CULORI OPTIMIZATE
 # ===================================================================
 
 UAV_HSI_CLASSES = {
@@ -354,7 +307,7 @@ def create_legend_figure():
 
 
 # ===================================================================
-# CLASA MODELULUI (PĂSTREZ IDENTICĂ)
+# CLASA MODELULUI TĂU PENTRU SEGMENTARE HIPERSPECTRALĂ
 # ===================================================================
 
 class ImprovedHyperspectralUNet(nn.Module):
@@ -539,7 +492,7 @@ class ImprovedHyperspectralUNet(nn.Module):
 
 
 # ===================================================================
-# FUNCȚII HELPER (PĂSTREZ IDENTICE)
+# FUNCȚII HELPER
 # ===================================================================
 
 def get_available_models():
@@ -936,366 +889,236 @@ def calculate_evi(hyperspectral_data):
 
 
 # ===================================================================
-# UI PRINCIPAL CU LAYOUT TABS ÎMBUNĂTĂȚIT
+# UI PRINCIPAL
 # ===================================================================
 
-# Header principal
-st.markdown("## 🌱 Demo Segmentare UAV-HSI")
+# UI Principal - Compactat
+st.markdown("## 🌱 Demo Segmentare UAV-HSI")  # Micșorez titlul
 st.markdown("**Interfață demonstrativă pentru segmentarea semantică a culturilor agricole**")
 
-# Sidebar pentru controluri - îmbunătățit
-st.sidebar.header("⚙️ Panou Control")
+# Sidebar pentru controluri - compactat
+st.sidebar.header("⚙️ Setări")
 
-# 1. Load Model - organizat în expander
-with st.sidebar.expander("🔧 Configurare Model", expanded=True):
-    available_models = get_available_models()
+# 1. Load Model - compactat
+st.sidebar.subheader("🔧 Model")
 
-    if available_models:
-        model_choice = st.selectbox(
-            "Selectează Model:",
-            list(available_models.keys()),
-            help="Alege modelul antrenat pentru segmentare"
-        )
+# Scanează modelele disponibile
+available_models = get_available_models()
 
-        # Informații model compacte
-        if model_choice in available_models:
+if available_models:
+    model_choice = st.sidebar.selectbox(
+        "Model:",
+        list(available_models.keys()),
+        help="Alege modelul antrenat"
+    )
+
+    # Informații model compacte - fără expander
+    if model_choice in available_models:
+        model_info = available_models[model_choice]
+        config = model_info['config']
+        st.sidebar.caption(f"**{config['encoder_name']}** | {config['n_bands']} benzi | {config['n_classes']} clase")
+
+    if st.sidebar.button("🔄 Încarcă"):
+        with st.spinner("Se încarcă..."):
             model_info = available_models[model_choice]
-            config = model_info['config']
-            st.caption(f"**{config['encoder_name']}** | {config['n_bands']} benzi | {config['n_classes']} clase")
+            model, error = load_model(model_info['path'], model_info['config'])
 
-        if st.button("🔄 Încarcă Model", type="primary"):
-            with st.spinner("Se încarcă modelul..."):
-                model_info = available_models[model_choice]
-                model, error = load_model(model_info['path'], model_info['config'])
+            if model is not None:
+                st.session_state.model = model
+                st.session_state.model_config = model_info['config']
+                st.session_state.model_name = model_choice
+                st.sidebar.success("✅ Încărcat!")
 
-                if model is not None:
-                    st.session_state.model = model
-                    st.session_state.model_config = model_info['config']
-                    st.session_state.model_name = model_choice
-                    st.success("✅ Model încărcat!")
+                # Info compactă despre model
+                total_params = sum(p.numel() for p in model.parameters())
+                device = next(model.parameters()).device
+                st.sidebar.caption(f"📊 {total_params:,} parametri | 🔧 {device}")
 
-                    # Info compactă despre model
-                    total_params = sum(p.numel() for p in model.parameters())
-                    device = next(model.parameters()).device
-                    st.caption(f"📊 {total_params:,} parametri | 🔧 {device}")
+            else:
+                st.sidebar.error(f"❌ {error}")
+else:
+    st.sidebar.error("❌ Nu s-au găsit modele")
+    st.sidebar.caption("💡 Adaugă fișiere .pth în models/")
 
-                else:
-                    st.error(f"❌ {error}")
-    else:
-        st.error("❌ Nu s-au găsit modele")
-        st.caption("💡 Adaugă fișiere .pth în models/")
+    # Buton pentru model fake pentru testare
+    if st.sidebar.button("🎭 Model Simulat"):
+        st.session_state.model = "fake_model"
+        st.session_state.model_config = {'n_bands': 200, 'n_classes': 30}
+        st.session_state.model_name = "Model Simulat"
+        st.sidebar.success("✅ Model simulat!")
 
-        # Buton pentru model fake pentru testare
-        if st.button("🎭 Model Simulat"):
-            st.session_state.model = "fake_model"
-            st.session_state.model_config = {'n_bands': 200, 'n_classes': 30}
-            st.session_state.model_name = "Model Simulat"
-            st.success("✅ Model simulat încărcat!")
+# 2. Load Image - compactat
+st.sidebar.subheader("📂 Imagine")
 
-# 2. Load Image - organizat în expander
-with st.sidebar.expander("📂 Selecție Imagine", expanded=True):
-    available_images = load_available_images()
+# Încarcă lista imaginilor disponibile
+available_images = load_available_images()
 
-    if available_images:
-        selected_image = st.selectbox(
-            "Selectează Imagine:",
-            available_images,
-            help="Alege din setul de test UAV-HSI"
-        )
+if available_images:
+    selected_image = st.sidebar.selectbox(
+        "Imagine:",
+        available_images,
+        help="Alege din setul de test UAV-HSI"
+    )
 
-        if st.button("📂 Încarcă Imagine"):
-            with st.spinner("Se încarcă imaginea..."):
-                rs_data, gt_data = load_hyperspectral_image(selected_image)
+    if st.sidebar.button("📂 Încarcă"):
+        with st.spinner("Se încarcă..."):
+            rs_data, gt_data = load_hyperspectral_image(selected_image)
 
-                if rs_data is not None:
-                    st.session_state.rs_data = rs_data
-                    st.session_state.gt_data = gt_data
-                    st.session_state.image_name = selected_image
-                    st.session_state.rgb_composite = create_rgb_composite(rs_data)
-                    st.success("✅ Imagine încărcată!")
-                else:
-                    st.error("❌ Eroare la încărcare!")
+            if rs_data is not None:
+                st.session_state.rs_data = rs_data
+                st.session_state.gt_data = gt_data
+                st.session_state.image_name = selected_image
 
-    else:
-        st.error("❌ Nu s-au găsit imagini")
-        st.caption("Adaugă .npy în sample_data/rs/")
+                # Folosește doar natural_colors din codul original
+                st.session_state.rgb_composite = create_rgb_composite(rs_data)
+                st.sidebar.success("✅ Încărcată!")
+            else:
+                st.sidebar.error("❌ Eroare!")
 
-# 3. Parametri avansați - opționali
-with st.sidebar.expander("🎛️ Parametri Avansați"):
-    confidence_threshold = st.slider("Threshold Confidence", 0.0, 1.0, 0.5)
-    show_probabilities = st.checkbox("Afișează Probabilități")
-    overlay_transparency = st.slider("Transparență Overlay", 0.0, 1.0, 0.7)
+else:
+    st.sidebar.error("❌ Nu s-au găsit imagini")
+    st.sidebar.caption("Adaugă .npy în sample_data/rs/")
 
-st.sidebar.markdown("---")
+# 3. Butoane de acțiune - compacte
+st.sidebar.subheader("🚀 Acțiuni")
 
-# Acțiuni rapide în sidebar
-st.sidebar.markdown("### 🚀 Acțiuni Rapide")
+# Buton pentru segmentare
+segment_btn = st.sidebar.button("🚀 Segmentare", type="primary")
 
-if st.sidebar.button("🤖 Segmentare Completă", type="primary"):
-    st.session_state.run_segmentation = True
-
-if st.sidebar.button("🌿 Analiză Vegetație"):
-    st.session_state.run_vegetation = True
-
-if st.sidebar.button("📊 Raport Complet"):
-    st.session_state.show_complete_report = True
+# Buton pentru indici vegetație
+indices_btn = st.sidebar.button("🌿 Indici Vegetație")
 
 # =============================================================================
-# ZONA PRINCIPALĂ CU TABS
+# ZONA PRINCIPALĂ DE AFIȘARE
 # =============================================================================
 
-# Verifică dacă e încărcată o imagine
+# Afișare imagine încărcată (RS + GT)
 if 'rs_data' in st.session_state:
 
-    # Info despre imaginea încărcată
+    # Info despre imagine
     st.info(f"📷 Imaginea încărcată: **{st.session_state.image_name}** | "
             f"Dimensiuni: {st.session_state.rs_data.shape}")
 
-    # ===== TABS PRINCIPALE =====
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "🖼️ Imagini Originale",
-        "🤖 Segmentare Model",
-        "🌿 Indici Vegetație",
-        "📊 Dashboard Complet"
-    ])
+    # Afișare imagine originală și ground truth
+    st.subheader("📷 Imagine și Ground Truth Interactive")
 
-    # ==========================================
-    # TAB 1: IMAGINI ORIGINALE
-    # ==========================================
-    with tab1:
-        st.markdown('<div class="section-header">🖼️ Imagini Originale UAV-HSI</div>', unsafe_allow_html=True)
+    # 3 coloane: RGB, GT, Legenda - AJUSTEZ PROPORȚIILE PENTRU MUTARE LA STÂNGA
+    col1, col2, col3 = st.columns([0.9, 0.9, 1.0])  # Fac coloanele 1 și 2 mai mici pentru a împinge imaginile la stânga
 
-        # Afișare imagini în coloane
-        col1, col2 = st.columns([0.9, 0.9])
-
-        with col1:
-            st.markdown("**🖼️ Compozit RGB Natural**")
-            st.caption("Vizualizare în culori naturale din benzile hiperspectrale")
-
-            if st.session_state.rgb_composite is not None:
-                if PLOTLY_AVAILABLE:
-                    fig_rgb = create_rgb_plotly_display(st.session_state.rgb_composite)
-                    if fig_rgb:
-                        st.plotly_chart(fig_rgb, use_container_width=True,
-                                        key="rgb_original_tab",
-                                        config={
-                                            'displayModeBar': False,
-                                            'displaylogo': False,
-                                            'staticPlot': True,
-                                            'doubleClick': 'reset',
-                                            'scrollZoom': False
-                                        })
+    with col1:
+        st.markdown("**🖼️ Compozit RGB**")
+        if st.session_state.rgb_composite is not None:
+            if PLOTLY_AVAILABLE:
+                # FOLOSESC PLOTLY PENTRU RGB - ALIGNMENT PERFECT CU GT!
+                fig_rgb = create_rgb_plotly_display(st.session_state.rgb_composite)
+                if fig_rgb:
+                    st.plotly_chart(fig_rgb, use_container_width=True,
+                                    key="rgb_composit_chart",  # Cheie unică pentru RGB
+                                    config={
+                                        'displayModeBar': False,  # Ascund toolbar-ul
+                                        'displaylogo': False,
+                                        'staticPlot': True,  # RGB nu are nevoie de interactivitate
+                                        'doubleClick': 'reset',
+                                        'scrollZoom': False
+                                    })
                 else:
-                    # Fallback la matplotlib
+                    # Fallback la matplotlib dacă Plotly nu merge pentru RGB
                     fig, ax = plt.subplots(figsize=(4.8, 3.6), facecolor='none')
                     ax.imshow(st.session_state.rgb_composite, aspect='equal')
                     ax.axis('off')
                     plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
                     st.pyplot(fig, use_container_width=True)
                     plt.close()
-
-        with col2:
-            st.markdown("**🎯 Ground Truth de Referință**")
-            st.caption("Adnotări manuale pentru evaluarea modelului")
-
-            if st.session_state.gt_data is not None:
-                if PLOTLY_AVAILABLE:
-                    fig_gt = create_interactive_segmentation_plot(
-                        st.session_state.gt_data,
-                        ""
-                    )
-                    st.plotly_chart(fig_gt, use_container_width=True,
-                                    key="gt_original_tab",
-                                    config={
-                                        'displayModeBar': False,
-                                        'displaylogo': False,
-                                        'staticPlot': False,
-                                        'doubleClick': 'reset',
-                                        'scrollZoom': False
-                                    })
-                else:
-                    fig = create_matplotlib_fallback(
-                        st.session_state.gt_data,
-                        "Ground Truth - Clase de Culturi"
-                    )
-                    st.pyplot(fig, use_container_width=True)
-                    plt.close()
             else:
-                st.info("Nu există ground truth pentru această imagine")
+                # Fallback la matplotlib când Plotly nu e disponibil
+                fig, ax = plt.subplots(figsize=(4.8, 3.6), facecolor='none')
+                ax.imshow(st.session_state.rgb_composite, aspect='equal')
+                ax.axis('off')
+                plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+                st.pyplot(fig, use_container_width=True)
+                plt.close()
 
-        # Separarea secțiunii pentru legendă
-        st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown("**🎯 Ground Truth cu Hover Info**" if PLOTLY_AVAILABLE else "**🎯 Ground Truth cu Denumiri**")
+        if st.session_state.gt_data is not None:
+            if PLOTLY_AVAILABLE:
+                # Folosește Plotly pentru interactivitate
+                fig_gt = create_interactive_segmentation_plot(
+                    st.session_state.gt_data,
+                    ""  # Fără titlu redundant
+                )
+                st.plotly_chart(fig_gt, use_container_width=True,
+                                key="gt_main",  # Cheie unică pentru GT principal
+                                config={
+                                    'displayModeBar': False,  # Ascund complet toolbar-ul pentru alignment perfect
+                                    'displaylogo': False,  # Scoate logo-ul Plotly
+                                    'staticPlot': False,  # Păstrez interactivitatea (hover)
+                                    'doubleClick': 'reset',  # Double-click pentru reset
+                                    'scrollZoom': False  # Dezactivez scroll zoom
+                                })
+            else:
+                # Fallback la matplotlib
+                fig = create_matplotlib_fallback(
+                    st.session_state.gt_data,
+                    "Ground Truth - Clase de Culturi"
+                )
+                st.pyplot(fig, use_container_width=True)
+                plt.close()
 
-        # Secțiunea de legendă
-        st.markdown("### 🎨 Legenda Claselor de Culturi")
+        else:
+            st.info("Nu există ground truth pentru această imagine")
 
+    with col3:
+        st.markdown("**📋 Legenda Claselor**")
         if st.session_state.gt_data is not None:
             # Găsește clasele prezente în imagine
             unique_classes = np.unique(st.session_state.gt_data)
 
-            col3, col4 = st.columns([2, 1])
+            # Afișează legenda cu culori vizuale
+            st.markdown("**Clase prezente:**")
 
-            with col3:
-                st.markdown("**Clase prezente în imaginea curentă:**")
+            for class_id in sorted(unique_classes):
+                if class_id < 30:  # Validare
+                    class_name = UAV_HSI_CLASSES[class_id]["name_ro"]
+                    color = UAV_HSI_CLASSES[class_id]["color"]
 
-                # Organizează în 2 coloane pentru afișare mai bună
-                subcol1, subcol2 = st.columns(2)
+                    # Creează pătrat colorat HTML cu culoarea exactă
+                    color_square = f'<span style="display:inline-block; width:20px; height:20px; background-color:{color}; border:1px solid #333; margin-right:8px; vertical-align:middle;"></span>'
 
-                for i, class_id in enumerate(sorted(unique_classes)):
-                    if class_id < 30:  # Validare
-                        class_name = UAV_HSI_CLASSES[class_id]["name_ro"]
-                        color = UAV_HSI_CLASSES[class_id]["color"]
+                    # Afișează culoarea + numele clasei
+                    st.markdown(f"{color_square} **{class_name}**", unsafe_allow_html=True)
+                    st.markdown("")  # Spațiu între clase
 
-                        # Creează pătrat colorat HTML cu culoarea exactă
-                        color_square = f'<span style="display:inline-block; width:16px; height:16px; background-color:{color}; border:1px solid #333; margin-right:8px; vertical-align:middle;"></span>'
+            # Opțional: afișează legenda completă într-un expander
+            with st.expander("🎨 Vezi toate clasele disponibile"):
+                st.markdown("**Toate cele 30 de clase UAV-HSI:**")
 
-                        # Alternează între coloane
-                        target_col = subcol1 if i % 2 == 0 else subcol2
-                        with target_col:
-                            st.markdown(f"{color_square} **{class_name}**", unsafe_allow_html=True)
+                # Organizează în coloane pentru vizualizare mai bună
+                cols = st.columns(2)
+                for i in range(30):
+                    class_info = UAV_HSI_CLASSES[i]
+                    color_square = f'<span style="display:inline-block; width:15px; height:15px; background-color:{class_info["color"]}; border:1px solid #333; margin-right:5px; vertical-align:middle;"></span>'
 
-                        with col_stats:
-                            st.write(f"{percentage:.1f}% ({count:,} pixeli)")
-            else:
-            st.info("Încarcă o imagine pentru analiză spațială")
+                    # Alternează între coloane
+                    with cols[i % 2]:
+                        st.markdown(f"{color_square} **{i}:** {class_info['name_ro']}", unsafe_allow_html=True)
 
-else:
-# Stare inițială - nu e încărcată nicio imagine
-st.markdown('<div class="section-header">🚀 Începe prin a încărca o imagine hiperspectrală UAV-HSI</div>',
-            unsafe_allow_html=True)
+    # ==========================================================================
+    # REZULTATE SEGMENTARE - APLICAREA MODELULUI REAL
+    # ==========================================================================
 
-st.info(
-    "👈 Folosește bara laterală pentru a selecta și încărca o imagine hiperspectrală din setul de test pentru segmentarea culturilor agricole.")
-
-# Afișare placeholder cu informații despre dataset
-col1, col2 = st.columns(2)
-
-with col1:
-    st.markdown("**📊 Despre Dataset-ul UAV-HSI**")
-    st.write("""
-        - **200 benzi spectrale** (385-1024 nm)
-        - **30 clase de culturi** agricole
-        - Imagini captate cu **dronă UAV** 
-        - Rezoluție spațială: **0.1m/pixel**
-        - Zona de studiu: **Shenzhou, China**
-        """)
-
-with col2:
-    st.markdown("**🎯 Capabilități Demo**")
-    st.write("""
-        - **Segmentare semantică** cu deep learning
-        - **Vizualizare optimizată** cu 30 culori distincte
-        - **Indici de vegetație** (NDVI, EVI, SAVI, NDWI, GNDVI)
-        - **Metrici de performanță** detaliiate
-        - **Dashboard executiv** complet
-        """)
-
-# Quick start guide
-st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-
-st.markdown("### 🔧 Ghid Rapid de Utilizare")
-
-step_col1, step_col2, step_col3, step_col4 = st.columns(4)
-
-with step_col1:
-    st.markdown("""
-        **1️⃣ Încarcă Model**
-        - Alege din lista disponibilă
-        - Verifică compatibilitatea
-        - Încarcă în memorie
-        """)
-
-with step_col2:
-    st.markdown("""
-        **2️⃣ Selectează Imagine**
-        - Browsează setul de test
-        - Vizualizează RGB + GT
-        - Analizează clasele prezente
-        """)
-
-with step_col3:
-    st.markdown("""
-        **3️⃣ Rulează Analize**
-        - Segmentare cu AI
-        - Indici de vegetație
-        - Metrici de performanță
-        """)
-
-with step_col4:
-    st.markdown("""
-        **4️⃣ Consultă Dashboard**
-        - Rezumat executiv
-        - Analiză detaliată
-        - Recomandări practice
-        """)
-
-# Footer cu informații - îmbunătățit
-st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-st.markdown("""
-<div style='text-align: center; color: #666; font-size: 0.9em; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 10px;'>
-    🌱 <strong>Demo Segmentare UAV-HSI</strong> | Lucrare de Diplomă - Segmentarea Semantică a Culturilor Agricole<br>
-    📊 <strong>Dataset:</strong> 30 clase culturi, 200 benzi spectrale (385-1024 nm)<br>
-    🤖 <strong>Tehnologii:</strong> Deep Learning (U-Net), Analiză Multispectrală, Streamlit Cloud<br>
-    📍 <strong>Zona studiu:</strong> Shenzhou, China | 🎯 <strong>Rezoluție:</strong> 0.1m/pixel
-</div>
-""", unsafe_allow_html=True)(f"{color_square} **{class_name}**", unsafe_allow_html=True)
-
-with col4:
-    # Statistici quick
-    st.markdown("**📊 Statistici Rapide:**")
-    st.metric("Total Clase", f"{len(unique_classes)}")
-    st.metric("Pixeli Totali", f"{st.session_state.gt_data.size:,}")
-
-    # Cea mai frecventă clasă
-    most_common_class = np.argmax(np.bincount(st.session_state.gt_data.flatten()))
-    if most_common_class < 30:
-        st.metric("Clasă Dominantă", UAV_HSI_CLASSES[most_common_class]["name_ro"])
-
-# Opțional: afișează legenda completă într-un expander
-with st.expander("🎨 Vezi toate clasele disponibile (30 clase UAV-HSI)"):
-    st.markdown("**Toate cele 30 de clase din dataset-ul UAV-HSI:**")
-
-    # Organizează în coloane pentru vizualizare mai bună
-    cols = st.columns(3)
-    for i in range(30):
-        class_info = UAV_HSI_CLASSES[i]
-        color_square = f'<span style="display:inline-block; width:15px; height:15px; background-color:{class_info["color"]}; border:1px solid #333; margin-right:5px; vertical-align:middle;"></span>'
-
-        # Alternează între coloane
-        with cols[i % 3]:
-            st.markdown(f"{color_square} **{i}:** {class_info['name_ro']}", unsafe_allow_html=True)
-
-    # ==========================================
-    # TAB 2: SEGMENTARE MODEL
-    # ==========================================
-with tab2:
-    st.markdown('<div class="section-header">🤖 Segmentare cu Deep Learning</div>', unsafe_allow_html=True)
-
-    # Verifică starea segmentării
-    if 'run_segmentation' in st.session_state or 'segmentation_done' in st.session_state:
-
-        # Controluri pentru segmentare
-        col_ctrl1, col_ctrl2, col_ctrl3 = st.columns([1, 1, 2])
-
-        with col_ctrl1:
-            if st.button("🚀 Rulează Segmentare", type="primary"):
-                st.session_state.segmentation_done = True
-
-        with col_ctrl2:
-            if st.button("📊 Calculează Metrici"):
-                st.session_state.calculate_metrics = True
-
-        with col_ctrl3:
-            model_name = st.session_state.get('model_name', 'Model Necunoscut')
-            st.info(f"🔧 Model activ: **{model_name}**")
-
-        # Verifică dacă modelul e încărcat
+    if segment_btn:
         if 'model' not in st.session_state:
-            st.error("❌ Încarcă mai întâi un model din sidebar!")
+            st.error("❌ Încarcă mai întâi un model!")
         else:
-            st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+            st.session_state.segmentation_done = True
 
-            # Procesarea segmentării
+    if 'segmentation_done' in st.session_state and st.session_state.segmentation_done:
+        st.subheader("🤖 Rezultate Segmentare" + (" Interactive" if PLOTLY_AVAILABLE else ""))
+
+        if 'model' not in st.session_state:
+            st.error("❌ Model nu este încărcat!")
+        else:
             with st.spinner("🔄 Se aplică modelul de segmentare hiperspectrală..."):
 
                 if st.session_state.model == "fake_model":
@@ -1320,9 +1143,11 @@ with tab2:
 
                             # Ajustează numărul de benzi
                             if image_bands > model_bands:
+                                # Trunchiază la primele benzi
                                 processed_image = processed_image[:, :model_bands, :, :]
                                 st.info(f"📊 S-au folosit primele {model_bands} benzi din {image_bands}")
                             else:
+                                # Repetă benzile dacă sunt mai puține
                                 repeat_factor = model_bands // image_bands + 1
                                 repeated = processed_image.repeat(1, repeat_factor, 1, 1)
                                 processed_image = repeated[:, :model_bands, :, :]
@@ -1356,180 +1181,179 @@ with tab2:
                         st.session_state.prediction = fake_prediction
                         st.info("🎭 Folosind predicție simulată ca fallback")
 
-            # AFIȘARE COMPARAȚIE PREDICȚIE VS GROUND TRUTH
-            if 'prediction' in st.session_state:
-                st.markdown("### 🔍 Comparație Rezultate")
+        # AFIȘARE PREDICȚIE VS GROUND TRUTH CU ALIGNMENT PERFECT
+        if 'prediction' in st.session_state:
+            col3, col4 = st.columns([0.9, 0.9])  # Coloane mai mici pentru a împinge imaginile la stânga
 
-                col1, col2 = st.columns([0.9, 0.9])
+            with col3:
+                st.markdown(
+                    "**🔮 Predicția Modelului cu Hover Info**" if PLOTLY_AVAILABLE else "**🔮 Predicția Modelului**")
 
-                with col1:
-                    st.markdown("**🔮 Predicția Modelului**")
+                model_name = st.session_state.get('model_name', 'Model Necunoscut')
 
-                    if PLOTLY_AVAILABLE:
-                        fig_pred = create_interactive_segmentation_plot(
-                            st.session_state.prediction,
-                            ""
-                        )
-                        st.plotly_chart(fig_pred, use_container_width=True,
-                                        key="prediction_tab2",
-                                        config={
-                                            'displayModeBar': False,
-                                            'displaylogo': False,
-                                            'staticPlot': False,
-                                            'doubleClick': 'reset',
-                                            'scrollZoom': False
-                                        })
-                    else:
-                        fig = create_matplotlib_fallback(
-                            st.session_state.prediction,
-                            "Predicție Model"
-                        )
-                        st.pyplot(fig, use_container_width=True)
-                        plt.close()
-
-                with col2:
-                    st.markdown("**🎯 Ground Truth Referință**")
-
-                    if PLOTLY_AVAILABLE:
-                        fig_gt_compare = create_interactive_segmentation_plot(
-                            st.session_state.gt_data,
-                            ""
-                        )
-                        st.plotly_chart(fig_gt_compare, use_container_width=True,
-                                        key="gt_comparison_tab2",
-                                        config={
-                                            'displayModeBar': False,
-                                            'displaylogo': False,
-                                            'staticPlot': False,
-                                            'doubleClick': 'reset',
-                                            'scrollZoom': False
-                                        })
-                    else:
-                        fig = create_matplotlib_fallback(
-                            st.session_state.gt_data,
-                            "Ground Truth"
-                        )
-                        st.pyplot(fig, use_container_width=True)
-                        plt.close()
-
-                # Metrici de performanță
-                st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-                st.markdown("### 📊 Metrici de Performanță")
-
-                # Calculează metrici reale sau simulate
-                if 'model' in st.session_state and st.session_state.model != "fake_model":
-                    try:
-                        from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-
-                        # Flatten pentru calcule
-                        gt_flat = st.session_state.gt_data.flatten()
-                        pred_flat = st.session_state.prediction.flatten()
-
-                        # Acuratețe
-                        accuracy = accuracy_score(gt_flat, pred_flat)
-
-                        # IoU pentru fiecare clasă
-                        unique_classes = np.unique(gt_flat)
-                        ious = []
-
-                        for cls in unique_classes[:10]:  # Primele 10 clase pentru afișare
-                            if cls < 30:  # Validare
-                                gt_mask = (gt_flat == cls)
-                                pred_mask = (pred_flat == cls)
-                                intersection = np.sum(gt_mask & pred_mask)
-                                union = np.sum(gt_mask | pred_mask)
-                                if union > 0:
-                                    iou = intersection / union
-                                    ious.append(iou)
-
-                        mean_iou = np.mean(ious) if ious else 0.0
-
-                        # Afișează metrici generale
-                        col5, col6, col7, col8 = st.columns(4)
-
-                        with col5:
-                            st.metric("Acuratețe Globală", f"{accuracy:.3f}")
-                        with col6:
-                            st.metric("IoU Mediu", f"{mean_iou:.3f}")
-                        with col7:
-                            st.metric("Clase Detectate", f"{len(np.unique(pred_flat))}")
-                        with col8:
-                            st.metric("Clase în GT", f"{len(unique_classes)}")
-
-                    except ImportError:
-                        st.info("💡 Instalează sklearn pentru metrici precise: pip install scikit-learn")
-                    except Exception as e:
-                        st.warning(f"⚠️ Nu s-au putut calcula metricile: {str(e)}")
-
+                if PLOTLY_AVAILABLE:
+                    # Folosește Plotly pentru interactivitate
+                    fig_pred = create_interactive_segmentation_plot(
+                        st.session_state.prediction,
+                        ""  # Fără titlu redundant
+                    )
+                    st.plotly_chart(fig_pred, use_container_width=True,
+                                    key="prediction_chart",  # Cheie unică pentru predicție
+                                    config={
+                                        'displayModeBar': False,  # Ascund complet toolbar-ul
+                                        'displaylogo': False,  # Scoate logo-ul Plotly
+                                        'staticPlot': False,  # Păstrez interactivitatea (hover)
+                                        'doubleClick': 'reset',  # Double-click pentru reset
+                                        'scrollZoom': False  # Dezactivez scroll zoom
+                                    })
                 else:
-                    # Metrici simulate pentru demonstrație
+                    # Fallback la matplotlib
+                    fig = create_matplotlib_fallback(
+                        st.session_state.prediction,
+                        f"Predicție - {model_name}"
+                    )
+                    st.pyplot(fig, use_container_width=True)
+                    plt.close()
+
+            with col4:
+                st.markdown(
+                    "**🎯 Ground Truth cu Hover Info**" if PLOTLY_AVAILABLE else "**🎯 Ground Truth de Referință**")
+
+                if PLOTLY_AVAILABLE:
+                    # Plotly pentru ground truth în comparație
+                    fig_gt_compare = create_interactive_segmentation_plot(
+                        st.session_state.gt_data,
+                        ""  # Fără titlu redundant
+                    )
+                    st.plotly_chart(fig_gt_compare, use_container_width=True,
+                                    key="gt_comparison_chart",  # Cheie unică pentru GT comparație
+                                    config={
+                                        'displayModeBar': False,  # Ascund complet toolbar-ul
+                                        'displaylogo': False,  # Scoate logo-ul Plotly
+                                        'staticPlot': False,  # Păstrez interactivitatea (hover)
+                                        'doubleClick': 'reset',  # Double-click pentru reset
+                                        'scrollZoom': False  # Dezactivez scroll zoom
+                                    })
+                else:
+                    # Fallback la matplotlib
+                    fig = create_matplotlib_fallback(
+                        st.session_state.gt_data,
+                        "Ground Truth - Referință"
+                    )
+                    st.pyplot(fig, use_container_width=True)
+                    plt.close()
+
+            # Metrici de performanță reale (dacă modelul real a fost aplicat)
+            if 'model' in st.session_state and st.session_state.model != "fake_model":
+                st.subheader("📊 Metrici de Performanță per Clasă")
+
+                # Calculează metrici reale
+                try:
+                    from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+                    # Flatten pentru calcule
+                    gt_flat = st.session_state.gt_data.flatten()
+                    pred_flat = st.session_state.prediction.flatten()
+
+                    # Acuratețe
+                    accuracy = accuracy_score(gt_flat, pred_flat)
+
+                    # IoU pentru fiecare clasă
+                    unique_classes = np.unique(gt_flat)
+                    ious = []
+                    class_performance = []
+
+                    for cls in unique_classes[:10]:  # Primele 10 clase pentru afișare
+                        if cls < 30:  # Validare
+                            gt_mask = (gt_flat == cls)
+                            pred_mask = (pred_flat == cls)
+                            intersection = np.sum(gt_mask & pred_mask)
+                            union = np.sum(gt_mask | pred_mask)
+                            if union > 0:
+                                iou = intersection / union
+                                ious.append(iou)
+                                class_performance.append({
+                                    'Clasă': f"{int(cls)}: {UAV_HSI_CLASSES[cls]['name_ro']}",
+                                    # FORȚEZ int() pentru cls
+                                    'IoU': f"{iou:.3f}",
+                                    'Pixeli GT': int(np.sum(gt_mask)),  # FORȚEZ int()
+                                    'Pixeli Pred': int(np.sum(pred_mask))  # FORȚEZ int()
+                                })
+
+                    mean_iou = np.mean(ious) if ious else 0.0
+
+                    # Afișează metrici generale
                     col5, col6, col7, col8 = st.columns(4)
 
-                    # Simulare metrici
-                    accuracy = np.random.uniform(0.75, 0.95)
-                    iou = np.random.uniform(0.65, 0.85)
-                    precision = np.random.uniform(0.70, 0.90)
-                    recall = np.random.uniform(0.68, 0.88)
-
                     with col5:
-                        st.metric("Acuratețe", f"{accuracy:.3f}")
+                        st.metric("Acuratețe Globală", f"{accuracy:.3f}")
                     with col6:
-                        st.metric("IoU Mediu", f"{iou:.3f}")
+                        st.metric("IoU Mediu", f"{mean_iou:.3f}")
                     with col7:
-                        st.metric("Precizie", f"{precision:.3f}")
+                        st.metric("Clase Detectate", f"{len(np.unique(pred_flat))}")
                     with col8:
-                        st.metric("Recall", f"{recall:.3f}")
+                        st.metric("Clase în GT", f"{len(unique_classes)}")
 
-    else:
-        # Prima încărcare - instrucțiuni
-        st.markdown("### 🚀 Începe Segmentarea")
-        st.info("👈 Folosește butoanele din sidebar sau de mai sus pentru a începe segmentarea cu deep learning.")
+                    # Tabel cu performanțe pe clase
+                    if class_performance:
+                        st.markdown("**📋 Performanță pe tipuri de culturi (primele 10 clase):**")
 
-        # Informații despre proces
-        col1, col2 = st.columns(2)
+                        # Afișează performanțele cu culori vizuale
+                        for perf in class_performance:
+                            class_id = int(perf['Clasă'].split(':')[0])
+                            class_name = UAV_HSI_CLASSES[class_id]["name_ro"]
+                            color = UAV_HSI_CLASSES[class_id]["color"]
 
-        with col1:
-            st.markdown("**🔧 Procesul de Segmentare:**")
-            st.write("""
-                1. **Preprocessing** - Normalizarea benzilor spectrale
-                2. **Inferență** - Aplicarea modelului antrenat
-                3. **Post-processing** - Conversie la predicții finale
-                4. **Evaluare** - Calculul metricilor de performanță
-                """)
+                            # Pătrat colorat pentru fiecare clasă
+                            color_square = f'<span style="display:inline-block; width:16px; height:16px; background-color:{color}; border:1px solid #333; margin-right:8px; vertical-align:middle;"></span>'
 
-        with col2:
-            st.markdown("**📊 Metrici Disponibile:**")
-            st.write("""
-                - **Acuratețe globală** - Pixeli corect clasificați
-                - **IoU pe clasă** - Intersection over Union
-                - **Matrice confuzie** - Analiza erorilor
-                - **F1-Score** - Echilibru precizie/recall
-                """)
+                            # Afișează performanța cu culoarea
+                            col_name, col_iou, col_pixels = st.columns([3, 1, 2])
 
-    # ==========================================
-    # TAB 3: INDICI VEGETAȚIE
-    # ==========================================
-with tab3:
-    st.markdown('<div class="section-header">🌿 Analiză Avansată Vegetație</div>', unsafe_allow_html=True)
+                            with col_name:
+                                st.markdown(f"{color_square} **{class_name}**", unsafe_allow_html=True)
+                            with col_iou:
+                                st.metric("IoU", perf['IoU'])
+                            with col_pixels:
+                                st.write(f"GT: {perf['Pixeli GT']}, Pred: {perf['Pixeli Pred']}")
 
-    # Verifică starea calculării indicilor
-    if 'run_vegetation' in st.session_state or 'indices_calculated' in st.session_state:
+                            st.markdown("---")
 
-        # Controluri pentru indici
-        col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
+                except ImportError:
+                    st.info("💡 Instalează sklearn pentru metrici precise: pip install scikit-learn")
+                except Exception as e:
+                    st.warning(f"⚠️ Nu s-au putut calcula metricile: {str(e)}")
 
-        with col_btn1:
-            if st.button("🌱 Calculează Indici", type="primary"):
-                st.session_state.indices_calculated = True
+            else:
+                # Metrici simulate pentru demonstrație
+                st.subheader("📊 Metrici de Performanță (Simulate)")
+                col5, col6, col7, col8 = st.columns(4)
 
-        with col_btn2:
-            if st.button("📈 Analiză Detaliată"):
-                st.session_state.detailed_analysis = True
+                # Simulare metrici
+                accuracy = np.random.uniform(0.75, 0.95)
+                iou = np.random.uniform(0.65, 0.85)
+                precision = np.random.uniform(0.70, 0.90)
+                recall = np.random.uniform(0.68, 0.88)
 
-        with col_btn3:
-            st.info("🔬 Analiză multispectrală pentru monitorizarea culturilor")
+                with col5:
+                    st.metric("Acuratețe", f"{accuracy:.3f}")
+                with col6:
+                    st.metric("IoU Mediu", f"{iou:.3f}")
+                with col7:
+                    st.metric("Precizie", f"{precision:.3f}")
+                with col8:
+                    st.metric("Recall", f"{recall:.3f}")
 
-        # Calcularea indicilor
+    # ==========================================================================
+    # INDICII DE VEGETAȚIE
+    # ==========================================================================
+
+    if indices_btn:
+        st.session_state.indices_calculated = True
+
+    if 'indices_calculated' in st.session_state and st.session_state.indices_calculated:
+        st.subheader("🌿 Analiză Completă a Vegetației")
+
         with st.spinner("📊 Se calculează indicii avansați de vegetație pentru analiza UAV-HSI..."):
             # Calculează toți indicii
             ndvi = calculate_ndvi(st.session_state.rs_data)
@@ -1545,344 +1369,170 @@ with tab3:
             st.session_state.ndwi = ndwi
             st.session_state.gndvi = gndvi
 
-        st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+        # Afișare indici în grid 2x3
+        col1, col2, col3 = st.columns(3)
+        col4, col5, col6 = st.columns(3)
 
-        # Organizare indici în sub-tabs
-        sub_tab1, sub_tab2, sub_tab3 = st.tabs([
-            "🌱 Indici Primari",
-            "💧 Stres & Nutriție",
-            "🔬 Analiză per Culturi"
-        ])
+        indices_data = [
+            ("NDVI", "🌱 Vegetație Generală", ndvi, "RdYlGn", col1),
+            ("EVI", "🌿 Vegetație Îmbunătățită", evi, "RdYlGn", col2),
+            ("SAVI", "🟫 Ajustat pentru Sol", savi, "RdYlBu", col3),
+            ("NDWI", "💧 Stres Hidric", ndwi, "Blues", col4),
+            ("GNDVI", "🍃 Conținut Clorofilă", gndvi, "Greens", col5)
+        ]
 
-        with sub_tab1:
-            st.markdown("**Indici fundamentali de vegetație pentru monitorizarea culturilor**")
+        for index_name, title, index_data, colormap, col in indices_data:
+            if index_data is not None:
+                with col:
+                    st.markdown(f"**{title}**")
 
-            col1, col2, col3 = st.columns(3)
+                    # Calculează statistici
+                    mean_val = np.nanmean(index_data)
+                    std_val = np.nanstd(index_data)
+                    min_val = np.nanmin(index_data)
+                    max_val = np.nanmax(index_data)
 
-            # NDVI
-            with col1:
-                st.markdown("**🌱 NDVI - Vegetație Generală**")
-                if ndvi is not None:
-                    mean_val = np.nanmean(ndvi)
-                    interpretation = interpret_vegetation_index(mean_val, 'NDVI')
+                    # Interpretare automată
+                    interpretation = interpret_vegetation_index(mean_val, index_name)
 
                     # Afișează imaginea
                     fig, ax = plt.subplots(figsize=(4, 3))
-                    im = ax.imshow(ndvi, cmap='RdYlGn', vmin=-1, vmax=1, aspect='equal')
-                    ax.set_title("NDVI", fontsize=10, pad=5)
+                    # Calculează range-urile corecte pentru fiecare index
+                    if index_name in ['NDVI', 'NDWI', 'GNDVI']:
+                        vmin, vmax = -1, 1
+                    elif index_name == 'EVI':
+                        vmin, vmax = 0, 2
+                    else:  # SAVI
+                        vmin, vmax = 0, 1
+
+                    im = ax.imshow(index_data, cmap=colormap, vmin=vmin, vmax=vmax, aspect='equal')
+                    ax.set_title(f"{index_name}", fontsize=10, pad=5)
                     ax.axis('off')
+
                     plt.tight_layout()
                     st.pyplot(fig, use_container_width=True)
                     plt.close()
 
-                    # Statistici
+                    # Statistici compacte
                     st.write(f"**Mediu:** {mean_val:.3f}")
-                    status_color = "green" if interpretation["health"] in ["Foarte bună", "Excelentă",
-                                                                           "Bună"] else "orange" if interpretation[
-                                                                                                        "health"] == "Moderată" else "red"
-                    st.markdown(f"**Status:** :{status_color}[{interpretation['status']}]")
+                    st.write(f"**Range:** {min_val:.3f} - {max_val:.3f}")
 
-            # EVI
-            with col2:
-                st.markdown("**🌿 EVI - Vegetație Îmbunătățită**")
-                if evi is not None:
-                    mean_val = np.nanmean(evi)
-                    interpretation = interpret_vegetation_index(mean_val, 'EVI')
-
-                    fig, ax = plt.subplots(figsize=(4, 3))
-                    im = ax.imshow(evi, cmap='RdYlGn', vmin=0, vmax=2, aspect='equal')
-                    ax.set_title("EVI", fontsize=10, pad=5)
-                    ax.axis('off')
-                    plt.tight_layout()
-                    st.pyplot(fig, use_container_width=True)
-                    plt.close()
-
-                    st.write(f"**Mediu:** {mean_val:.3f}")
-                    status_color = "green" if interpretation["health"] in ["Foarte bună", "Excelentă",
-                                                                           "Bună"] else "orange" if interpretation[
-                                                                                                        "health"] == "Moderată" else "red"
-                    st.markdown(f"**Status:** :{status_color}[{interpretation['status']}]")
-
-            # SAVI
-            with col3:
-                st.markdown("**🟫 SAVI - Ajustat pentru Sol**")
-                if savi is not None:
-                    mean_val = np.nanmean(savi)
-                    interpretation = interpret_vegetation_index(mean_val, 'SAVI')
-
-                    fig, ax = plt.subplots(figsize=(4, 3))
-                    im = ax.imshow(savi, cmap='RdYlBu', vmin=0, vmax=1, aspect='equal')
-                    ax.set_title("SAVI", fontsize=10, pad=5)
-                    ax.axis('off')
-                    plt.tight_layout()
-                    st.pyplot(fig, use_container_width=True)
-                    plt.close()
-
-                    st.write(f"**Mediu:** {mean_val:.3f}")
-                    status_color = "green" if interpretation["health"] in ["Foarte bună", "Excelentă",
-                                                                           "Bună"] else "orange" if interpretation[
-                                                                                                        "health"] == "Moderată" else "red"
-                    st.markdown(f"**Status:** :{status_color}[{interpretation['status']}]")
-
-        with sub_tab2:
-            st.markdown("**Analiză stres hidric și conținut nutrițional**")
-
-            col1, col2 = st.columns(2)
-
-            # NDWI
-            with col1:
-                st.markdown("**💧 NDWI - Stres Hidric**")
-                if ndwi is not None:
-                    mean_val = np.nanmean(ndwi)
-                    interpretation = interpret_vegetation_index(mean_val, 'NDWI')
-
-                    fig, ax = plt.subplots(figsize=(4, 3))
-                    im = ax.imshow(ndwi, cmap='Blues', vmin=-1, vmax=1, aspect='equal')
-                    ax.set_title("NDWI", fontsize=10, pad=5)
-                    ax.axis('off')
-                    plt.tight_layout()
-                    st.pyplot(fig, use_container_width=True)
-                    plt.close()
-
-                    st.write(f"**Mediu:** {mean_val:.3f}")
-                    status_color = "green" if interpretation["health"] in ["Foarte bună", "Excelentă",
-                                                                           "Bună"] else "orange" if interpretation[
-                                                                                                        "health"] == "Moderată" else "red"
+                    # Status cu culoare
+                    status_color = "green" if interpretation["health"] in ["Foarte bună", "Excelentă", "Bună"] else \
+                        "orange" if interpretation["health"] == "Moderată" else "red"
                     st.markdown(f"**Status:** :{status_color}[{interpretation['status']}]")
                     st.markdown(f"**Acțiune:** {interpretation['action']}")
 
-            # GNDVI
-            with col2:
-                st.markdown("**🍃 GNDVI - Conținut Clorofilă**")
-                if gndvi is not None:
-                    mean_val = np.nanmean(gndvi)
-                    interpretation = interpret_vegetation_index(mean_val, 'GNDVI')
+        # Rezumat general în coloana 6
+        with col6:
+            st.markdown("**📊 Rezumat General**")
 
-                    fig, ax = plt.subplots(figsize=(4, 3))
-                    im = ax.imshow(gndvi, cmap='Greens', vmin=-1, vmax=1, aspect='equal')
-                    ax.set_title("GNDVI", fontsize=10, pad=5)
-                    ax.axis('off')
-                    plt.tight_layout()
-                    st.pyplot(fig, use_container_width=True)
-                    plt.close()
+            # Calculează media tuturor indicilor pentru evaluare generală
+            all_means = []
+            if ndvi is not None: all_means.append(np.nanmean(ndvi))
+            if evi is not None: all_means.append(np.nanmean(evi))
+            if savi is not None: all_means.append(np.nanmean(savi))
 
-                    st.write(f"**Mediu:** {mean_val:.3f}")
-                    status_color = "green" if interpretation["health"] in ["Foarte bună", "Excelentă",
-                                                                           "Bună"] else "orange" if interpretation[
-                                                                                                        "health"] == "Moderată" else "red"
-                    st.markdown(f"**Status:** :{status_color}[{interpretation['status']}]")
-                    st.markdown(f"**Acțiune:** {interpretation['action']}")
+            if all_means:
+                overall_mean = np.mean(all_means)
+                overall_interp = interpret_vegetation_index(overall_mean, 'NDVI')
 
-        with sub_tab3:
-            # Analiză comparativă cu tipurile de culturi
-            if 'gt_data' in st.session_state and ndvi is not None:
-                st.markdown("**🔬 Analiză per Tipuri de Culturi Identificate**")
+                st.metric("Sănătate Generală", f"{overall_mean:.3f}")
+                st.markdown(f"**{overall_interp['status']}**")
+                st.markdown(f"*{overall_interp['action']}*")
 
-                unique_classes = np.unique(st.session_state.gt_data)
-                vegetatie_classes = [2, 4, 5, 6, 7, 15, 22]  # Clase de vegetație verde
-
-                found_vegetation = [cls for cls in unique_classes if cls in vegetatie_classes and cls < 30]
-
-                if found_vegetation:
-                    crop_analysis = []
-                    for cls in found_vegetation[:5]:  # Primele 5 clase
-                        mask = st.session_state.gt_data == cls
-                        if np.sum(mask) > 100:  # Doar clase cu suficienți pixeli
-                            class_ndvi = np.nanmean(ndvi[mask])
-                            class_name = UAV_HSI_CLASSES[cls]["name_ro"]
-                            class_color = UAV_HSI_CLASSES[cls]["color"]
-                            interp = interpret_vegetation_index(class_ndvi, 'NDVI')
-
-                            crop_analysis.append({
-                                'name': class_name,
-                                'color': class_color,
-                                'ndvi': class_ndvi,
-                                'status': interp['status'],
-                                'health': interp['health']
-                            })
-
-                    if crop_analysis:
-                        # Sortează după NDVI
-                        crop_analysis.sort(key=lambda x: x['ndvi'], reverse=True)
-
-                        st.markdown("**🏆 Ranking Sănătate Culturi:**")
-                        for i, crop in enumerate(crop_analysis):
-                            color_square = f'<span style="display:inline-block; width:12px; height:12px; background-color:{crop["color"]}; border:1px solid #333; margin-right:5px; vertical-align:middle;"></span>'
-                            rank_emoji = "🥇" if i == 0 else "🥈" if i == 1 else "🥉" if i == 2 else "📍"
-                            health_color = "green" if crop["health"] in ["Foarte bună", "Excelentă"] else "orange" if \
-                            crop["health"] == "Bună" else "red"
-
-                            st.markdown(
-                                f"{rank_emoji} {color_square} **{crop['name']}** - NDVI: {crop['ndvi']:.3f} - :{health_color}[{crop['status']}]",
-                                unsafe_allow_html=True)
+                # Recomandări specifice pentru agricultură
+                st.markdown("**🚜 Recomandări Agricole:**")
+                if overall_mean > 0.6:
+                    st.success("✅ Culturile sunt în stare excelentă")
+                    st.write("• Continuă programul actual")
+                    st.write("• Monitorizează pentru recoltare")
+                elif overall_mean > 0.4:
+                    st.info("ℹ️ Culturile sunt în dezvoltare")
+                    st.write("• Asigură-te de nutriție adecvată")
+                    st.write("• Monitorizează irigarea")
                 else:
-                    st.info("Nu s-au găsit culturi de vegetație în această imagine pentru analiză detaliată.")
-            else:
-                st.info("Calculează mai întâi indicii de vegetație pentru a vedea analiza per culturi.")
+                    st.warning("⚠️ Culturile necesită atenție")
+                    st.write("• Verifică sistemul de irigare")
+                    st.write("• Analizează nutrienții din sol")
+                    st.write("• Investighează posibile boli")
 
-    else:
-        # Prima încărcare - instrucțiuni
-        st.markdown("### 🌱 Începe Analiza Vegetației")
-        st.info("👈 Folosește butoanele din sidebar sau de mai sus pentru a calcula indicii de vegetație.")
+        # Analiză comparativă cu tipurile de culturi
+        if 'gt_data' in st.session_state and ndvi is not None:
+            st.markdown("---")
+            st.markdown("**🔬 Analiză per Tipuri de Culturi Identificate**")
 
-        # Informații despre indici
-        col1, col2 = st.columns(2)
+            unique_classes = np.unique(st.session_state.gt_data)
+            vegetatie_classes = [2, 4, 5, 6, 7, 15, 22]  # Clase de vegetație verde
 
-        with col1:
-            st.markdown("**📊 Indici Disponibili:**")
-            st.write("""
-                - **NDVI** - Normalized Difference Vegetation Index
-                - **EVI** - Enhanced Vegetation Index  
-                - **SAVI** - Soil-Adjusted Vegetation Index
-                - **NDWI** - Normalized Difference Water Index
-                - **GNDVI** - Green NDVI pentru clorofilă
-                """)
+            found_vegetation = [cls for cls in unique_classes if cls in vegetatie_classes and cls < 30]
 
-        with col2:
-            st.markdown("**🎯 Aplicații Practice:**")
-            st.write("""
-                - **Monitorizare creștere** culturi
-                - **Detectare stres** hidric și nutrițional
-                - **Optimizare irigare** și fertilizare
-                - **Predicție randament** agricol
-                - **Management precision** farming
-                """)
+            if found_vegetation:
+                crop_analysis = []
+                for cls in found_vegetation[:5]:  # Primele 5 clase
+                    mask = st.session_state.gt_data == cls
+                    if np.sum(mask) > 100:  # Doar clase cu suficienți pixeli
+                        class_ndvi = np.nanmean(ndvi[mask])
+                        class_name = UAV_HSI_CLASSES[cls]["name_ro"]
+                        class_color = UAV_HSI_CLASSES[cls]["color"]
+                        interp = interpret_vegetation_index(class_ndvi, 'NDVI')
 
-    # ==========================================
-    # TAB 4: DASHBOARD COMPLET
-    # ==========================================
-with tab4:
-    st.markdown('<div class="section-header">📊 Dashboard Executiv UAV-HSI</div>', unsafe_allow_html=True)
+                        crop_analysis.append({
+                            'name': class_name,
+                            'color': class_color,
+                            'ndvi': class_ndvi,
+                            'status': interp['status'],
+                            'health': interp['health']
+                        })
 
-    # REZUMAT EXECUTIV - SECȚIUNE DEDICATĂ
-    st.markdown('<div class="executive-summary">', unsafe_allow_html=True)
-    st.markdown("## 🎯 Rezumat Executiv")
+                if crop_analysis:
+                    # Sortează după NDVI
+                    crop_analysis.sort(key=lambda x: x['ndvi'], reverse=True)
 
-    col1, col2, col3 = st.columns([2, 2, 1])
+                    st.markdown("**🏆 Ranking Sănătate Culturi:**")
+                    for i, crop in enumerate(crop_analysis):
+                        color_square = f'<span style="display:inline-block; width:12px; height:12px; background-color:{crop["color"]}; border:1px solid #333; margin-right:5px; vertical-align:middle;"></span>'
+                        rank_emoji = "🥇" if i == 0 else "🥈" if i == 1 else "🥉" if i == 2 else "📍"
+                        health_color = "green" if crop["health"] in ["Foarte bună", "Excelentă"] else "orange" if crop[
+                                                                                                                      "health"] == "Bună" else "red"
+
+                        st.markdown(
+                            f"{rank_emoji} {color_square} **{crop['name']}** - NDVI: {crop['ndvi']:.3f} - :{health_color}[{crop['status']}]",
+                            unsafe_allow_html=True)
+
+else:
+    # Stare inițială - nu e încărcată nicio imagine
+    st.subheader("🚀 Începe prin a încărca o imagine hiperspectrală UAV-HSI")
+    st.info(
+        "👈 Folosește bara laterală pentru a selecta și încărca o imagine hiperspectrală din setul de test pentru segmentarea culturilor agricole.")
+
+    # Afișare placeholder cu informații despre dataset
+    col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("**📈 Performanță Model**")
-        # Metrici cheie - reale sau simulate
-        if 'prediction' in st.session_state:
-            metric_col1, metric_col2 = st.columns(2)
-            with metric_col1:
-                accuracy = np.random.uniform(0.82, 0.92)
-                st.metric("Acuratețe", f"{accuracy:.1%}", "↑ 2.3%")
-            with metric_col2:
-                iou = np.random.uniform(0.68, 0.78)
-                st.metric("IoU Mediu", f"{iou:.1%}", "↑ 1.8%")
-        else:
-            st.info("Rulează segmentarea pentru metrici")
+        st.markdown("**📊 Despre Dataset-ul UAV-HSI**")
+        st.write("""
+        - **200 benzi spectrale** (385-1024 nm)
+        - **30 clase de culturi** agricole
+        - Imagini captate cu **dronă UAV** 
+        - Rezoluție spațială: **0.1m/pixel**
+        - Zona de studiu: **Shenzhou, China**
+        """)
 
     with col2:
-        st.markdown("**🌱 Sănătate Vegetație**")
-        # Indici vegetație rezumat
-        if 'ndvi' in st.session_state:
-            ndvi_mean = np.nanmean(st.session_state.ndvi)
-            interp = interpret_vegetation_index(ndvi_mean, 'NDVI')
-            st.metric("NDVI Mediu", f"{ndvi_mean:.3f}", interp['status'])
-            st.metric("Stare Generală", interp['health'], "✅")
-        else:
-            st.info("Calculează indicii pentru evaluare")
+        st.markdown("**🎯 Capabilități Demo**")
+        st.write("""
+        - **Segmentare semantică** cu deep learning
+        - **Vizualizare optimizată** cu 30 culori distincte
+        - **Indici de vegetație** (NDVI, EVI)
+        - **Metrici de performanță** detaliiate
+        - **Denumiri în română** pentru toate clasele
+        """)
 
-    with col3:
-        st.markdown("**🚜 Status General**")
-        if 'ndvi' in st.session_state and 'prediction' in st.session_state:
-            st.success("✅ Analiza completă")
-            st.info("📊 Toate datele disponibile")
-        elif 'ndvi' in st.session_state:
-            st.warning("⚠️ Doar analiza vegetației")
-        elif 'prediction' in st.session_state:
-            st.warning("⚠️ Doar segmentarea")
-        else:
-            st.error("❌ Date insuficiente")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-
-    # ANALIZĂ DETALIATĂ ÎN EXPANDERS
-    with st.expander("🔬 Analiză Detaliată per Clasă de Cultură"):
-        if 'prediction' in st.session_state and 'gt_data' in st.session_state:
-            # Analiză detaliată a performanței per clasă
-            st.markdown("**Performanță detaliată pentru fiecare tip de cultură:**")
-
-            # Calculează și afișează metrici per clasă
-            unique_classes = np.unique(st.session_state.gt_data)
-
-            for cls in unique_classes[:10]:  # Primele 10 clase
-                if cls < 30:
-                    class_name = UAV_HSI_CLASSES[cls]["name_ro"]
-                    color = UAV_HSI_CLASSES[cls]["color"]
-
-                    # Calculează IoU pentru această clasă
-                    gt_mask = (st.session_state.gt_data == cls)
-                    pred_mask = (st.session_state.prediction == cls)
-                    intersection = np.sum(gt_mask & pred_mask)
-                    union = np.sum(gt_mask | pred_mask)
-                    iou = intersection / union if union > 0 else 0.0
-
-                    col_name, col_iou, col_pixels = st.columns([2, 1, 1])
-
-                    with col_name:
-                        color_square = f'<span style="display:inline-block; width:16px; height:16px; background-color:{color}; border:1px solid #333; margin-right:8px; vertical-align:middle;"></span>'
-                        st.markdown(f"{color_square} **{class_name}**", unsafe_allow_html=True)
-
-                    with col_iou:
-                        iou_color = "green" if iou > 0.7 else "orange" if iou > 0.5 else "red"
-                        st.markdown(f":{iou_color}[IoU: {iou:.3f}]")
-
-                    with col_pixels:
-                        st.write(f"Pixeli: {np.sum(gt_mask):,}")
-        else:
-            st.info("Rulează segmentarea pentru analiză detaliată")
-
-    with st.expander("📈 Evoluție și Tendințe"):
-        st.markdown("**Analiză temporală și tendințe (simulat):**")
-
-        # Grafic simulat cu evoluția NDVI în timp
-        if 'ndvi' in st.session_state:
-            import pandas as pd
-
-            # Simulează date temporale
-            dates = pd.date_range('2024-03-01', periods=10, freq='W')
-            ndvi_values = np.random.uniform(0.3, 0.8, 10)
-            ndvi_values = np.sort(ndvi_values)  # Simulează creșterea în timp
-
-            # Creează DataFrame pentru grafic
-            df = pd.DataFrame({
-                'Data': dates,
-                'NDVI Mediu': ndvi_values
-            })
-
-            st.line_chart(df.set_index('Data'))
-            st.caption("Evoluția simulată a NDVI-ului pe perioada de creștere")
-        else:
-            st.info("Calculează indicii pentru a vedea tendințele")
-
-    with st.expander("🗺️ Analiză Spațială și Distribuție"):
-        if 'gt_data' in st.session_state:
-            st.markdown("**Distribuția spațială a tipurilor de culturi:**")
-
-            # Calculează statistici despre distribuția claselor
-            unique_classes, counts = np.unique(st.session_state.gt_data, return_counts=True)
-
-            # Creează top 10 clase
-            top_indices = np.argsort(counts)[-10:][::-1]
-            top_classes = unique_classes[top_indices]
-            top_counts = counts[top_indices]
-
-            for i, (cls, count) in enumerate(zip(top_classes, top_counts)):
-                if cls < 30:
-                    class_name = UAV_HSI_CLASSES[cls]["name_ro"]
-                    color = UAV_HSI_CLASSES[cls]["color"]
-                    percentage = (count / np.sum(counts)) * 100
-
-                    col_rank, col_name, col_stats = st.columns([0.5, 2, 1])
-
-                    with col_rank:
-                        st.write(f"**{i + 1}.**")
-
-                    with col_name:
-                        color_square = f'<span style="display:inline-block; width:16px; height:16px; background-color:{color}; border:1px solid #333; margin-right:8px; vertical-align:middle;"></span>'
-                        st.markdown
+# Footer cu informații - compactat
+st.markdown("---")
+st.markdown("""
+<div style='text-align: center; color: #666; font-size: 0.8em; margin: 5px 0;'>
+🌱 Demo Segmentare UAV-HSI | Lucrare de Diplomă | 30 clase culturi, 200 benzi spectrale
+</div>
+""", unsafe_allow_html=True)
