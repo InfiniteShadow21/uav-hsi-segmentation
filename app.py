@@ -1529,5 +1529,4 @@ st.markdown("""
 <div style='text-align: center; color: #666; font-size: 0.8em; margin: 5px 0;'>
 🌱 Demo Segmentare UAV-HSI | Lucrare de Diplomă | 30 clase culturi, 200 benzi spectrale
 </div>
-""", unsafe_allow_html=True)#   F o r e z   u p d a t e   0 6 / 2 6 / 2 0 2 5   1 7 : 3 2 : 2 9  
- 
+""", unsafe_allow_html=True)#   F o r e z   u p d a t e   0 6 / 2 6 / 2 0 2 5   1 7 : 3 2 : 2 9 
