@@ -868,7 +868,7 @@ if 'rs_data' in st.session_state:
     st.subheader("📷 Imagine și Ground Truth Interactive")
 
     # 3 coloane: RGB, GT, Legenda - proporții optimizate pentru alignment perfect
-    col1, col2, col3 = st.columns([1.0, 1.0, 0.8])
+    col1, col2, col3 = st.columns([1.2, 1.2, 0.8])  # Fac coloanele 1 și 2 mai mari
 
     with col1:
         st.markdown("**🖼️ Compozit RGB**")
@@ -877,6 +877,8 @@ if 'rs_data' in st.session_state:
                 # FOLOSESC PLOTLY PENTRU RGB - ALIGNMENT PERFECT CU GT!
                 fig_rgb = create_rgb_plotly_display(st.session_state.rgb_composite)
                 if fig_rgb:
+                    # CENTREZ IMAGINEA CU CONTAINER_WIDTH=TRUE și PADDING
+                    st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
                     st.plotly_chart(fig_rgb, use_container_width=True,
                                     key="rgb_composit_chart",  # Cheie unică pentru RGB
                                     config={
@@ -886,13 +888,14 @@ if 'rs_data' in st.session_state:
                                         'doubleClick': 'reset',
                                         'scrollZoom': False
                                     })
+                    st.markdown('</div>', unsafe_allow_html=True)
                 else:
                     # Fallback la matplotlib dacă Plotly nu merge pentru RGB
                     fig, ax = plt.subplots(figsize=(4.8, 3.6), facecolor='none')
                     ax.imshow(st.session_state.rgb_composite, aspect='equal')
                     ax.axis('off')
                     plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-                    st.pyplot(fig, use_container_width=True, transparent=True)
+                    st.pyplot(fig, use_container_width=True)
                     plt.close()
             else:
                 # Fallback la matplotlib când Plotly nu e disponibil
@@ -900,19 +903,20 @@ if 'rs_data' in st.session_state:
                 ax.imshow(st.session_state.rgb_composite, aspect='equal')
                 ax.axis('off')
                 plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-                st.pyplot(fig, use_container_width=True, transparent=True)
+                st.pyplot(fig, use_container_width=True)
                 plt.close()
 
     with col2:
         st.markdown("**🎯 Ground Truth cu Hover Info**" if PLOTLY_AVAILABLE else "**🎯 Ground Truth cu Denumiri**")
         if st.session_state.gt_data is not None:
             if PLOTLY_AVAILABLE:
-                # Folosește Plotly pentru interactivitate CU ÎNĂLȚIME ALINIATĂ
+                # Folosește Plotly pentru interactivitate CU CENTRARE
                 fig_gt = create_interactive_segmentation_plot(
                     st.session_state.gt_data,
                     ""  # Fără titlu redundant
                 )
-                # Configurez toolbar-ul să apară doar la hover și să nu interfereze
+                # CENTREZ IMAGINEA CU CONTAINER_WIDTH=TRUE
+                st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
                 st.plotly_chart(fig_gt, use_container_width=True,
                                 key="gt_main",  # Cheie unică pentru GT principal
                                 config={
@@ -922,6 +926,7 @@ if 'rs_data' in st.session_state:
                                     'doubleClick': 'reset',  # Double-click pentru reset
                                     'scrollZoom': False  # Dezactivez scroll zoom
                                 })
+                st.markdown('</div>', unsafe_allow_html=True)
             else:
                 # Fallback la matplotlib
                 fig = create_matplotlib_fallback(
@@ -1049,7 +1054,7 @@ if 'rs_data' in st.session_state:
 
         # AFIȘARE PREDICȚIE VS GROUND TRUTH CU ALIGNMENT PERFECT
         if 'prediction' in st.session_state:
-            col3, col4 = st.columns([1, 1])  # Coloane egale pentru alignment perfect
+            col3, col4 = st.columns([1.2, 1.2])  # Coloane mai mari și egale pentru alignment perfect
 
             with col3:
                 st.markdown(
@@ -1058,12 +1063,14 @@ if 'rs_data' in st.session_state:
                 model_name = st.session_state.get('model_name', 'Model Necunoscut')
 
                 if PLOTLY_AVAILABLE:
-                    # Folosește Plotly pentru interactivitate CU ÎNĂLȚIME ALINIATĂ
+                    # Folosește Plotly pentru interactivitate CU CENTRARE
                     fig_pred = create_interactive_segmentation_plot(
                         st.session_state.prediction,
                         ""  # Fără titlu redundant
                     )
-                    st.plotly_chart(fig_pred, use_container_width=False,  # SCHIMBAT LA FALSE
+                    # CENTREZ IMAGINEA SUB TITLU
+                    st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
+                    st.plotly_chart(fig_pred, use_container_width=True,
                                     key="prediction_chart",  # Cheie unică pentru predicție
                                     config={
                                         'displayModeBar': False,  # Ascund complet toolbar-ul
@@ -1072,13 +1079,14 @@ if 'rs_data' in st.session_state:
                                         'doubleClick': 'reset',  # Double-click pentru reset
                                         'scrollZoom': False  # Dezactivez scroll zoom
                                     })
+                    st.markdown('</div>', unsafe_allow_html=True)
                 else:
                     # Fallback la matplotlib
                     fig = create_matplotlib_fallback(
                         st.session_state.prediction,
                         f"Predicție - {model_name}"
                     )
-                    st.pyplot(fig, use_container_width=False)  # SCHIMBAT LA FALSE
+                    st.pyplot(fig, use_container_width=True)
                     plt.close()
 
             with col4:
@@ -1086,12 +1094,14 @@ if 'rs_data' in st.session_state:
                     "**🎯 Ground Truth cu Hover Info**" if PLOTLY_AVAILABLE else "**🎯 Ground Truth de Referință**")
 
                 if PLOTLY_AVAILABLE:
-                    # Plotly pentru ground truth în comparație CU ÎNĂLȚIME ALINIATĂ
+                    # Plotly pentru ground truth în comparație CU CENTRARE
                     fig_gt_compare = create_interactive_segmentation_plot(
                         st.session_state.gt_data,
                         ""  # Fără titlu redundant
                     )
-                    st.plotly_chart(fig_gt_compare, use_container_width=False,  # SCHIMBAT LA FALSE
+                    # CENTREZ IMAGINEA SUB TITLU
+                    st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
+                    st.plotly_chart(fig_gt_compare, use_container_width=True,
                                     key="gt_comparison_chart",  # Cheie unică pentru GT comparație
                                     config={
                                         'displayModeBar': False,  # Ascund complet toolbar-ul
@@ -1100,13 +1110,14 @@ if 'rs_data' in st.session_state:
                                         'doubleClick': 'reset',  # Double-click pentru reset
                                         'scrollZoom': False  # Dezactivez scroll zoom
                                     })
+                    st.markdown('</div>', unsafe_allow_html=True)
                 else:
                     # Fallback la matplotlib
                     fig = create_matplotlib_fallback(
                         st.session_state.gt_data,
                         "Ground Truth - Referință"
                     )
-                    st.pyplot(fig, use_container_width=False)  # SCHIMBAT LA FALSE
+                    st.pyplot(fig, use_container_width=True)
                     plt.close()
 
             # Metrici de performanță reale (dacă modelul real a fost aplicat)
