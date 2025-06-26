@@ -1,8 +1,6 @@
 import streamlit as st
 import numpy as np
 import os
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from PIL import Image
 import io
@@ -1065,7 +1063,7 @@ if 'rs_data' in st.session_state:
                         st.session_state.prediction,
                         ""  # Fără titlu redundant
                     )
-                    st.plotly_chart(fig_pred, use_container_width=True,
+                    st.plotly_chart(fig_pred, use_container_width=False,  # SCHIMBAT LA FALSE
                                     key="prediction_chart",  # Cheie unică pentru predicție
                                     config={
                                         'displayModeBar': False,  # Ascund complet toolbar-ul
@@ -1080,7 +1078,7 @@ if 'rs_data' in st.session_state:
                         st.session_state.prediction,
                         f"Predicție - {model_name}"
                     )
-                    st.pyplot(fig, use_container_width=True)
+                    st.pyplot(fig, use_container_width=False)  # SCHIMBAT LA FALSE
                     plt.close()
 
             with col4:
@@ -1093,7 +1091,7 @@ if 'rs_data' in st.session_state:
                         st.session_state.gt_data,
                         ""  # Fără titlu redundant
                     )
-                    st.plotly_chart(fig_gt_compare, use_container_width=True,
+                    st.plotly_chart(fig_gt_compare, use_container_width=False,  # SCHIMBAT LA FALSE
                                     key="gt_comparison_chart",  # Cheie unică pentru GT comparație
                                     config={
                                         'displayModeBar': False,  # Ascund complet toolbar-ul
@@ -1108,7 +1106,7 @@ if 'rs_data' in st.session_state:
                         st.session_state.gt_data,
                         "Ground Truth - Referință"
                     )
-                    st.pyplot(fig, use_container_width=True)
+                    st.pyplot(fig, use_container_width=False)  # SCHIMBAT LA FALSE
                     plt.close()
 
             # Metrici de performanță reale (dacă modelul real a fost aplicat)
@@ -1141,10 +1139,11 @@ if 'rs_data' in st.session_state:
                                 iou = intersection / union
                                 ious.append(iou)
                                 class_performance.append({
-                                    'Clasă': f"{cls}: {UAV_HSI_CLASSES[cls]['name_ro']}",
+                                    'Clasă': f"{int(cls)}: {UAV_HSI_CLASSES[cls]['name_ro']}",
+                                    # FORȚEZ int() pentru cls
                                     'IoU': f"{iou:.3f}",
-                                    'Pixeli GT': np.sum(gt_mask),
-                                    'Pixeli Pred': np.sum(pred_mask)
+                                    'Pixeli GT': int(np.sum(gt_mask)),  # FORȚEZ int()
+                                    'Pixeli Pred': int(np.sum(pred_mask))  # FORȚEZ int()
                                 })
 
                     mean_iou = np.mean(ious) if ious else 0.0
