@@ -35,6 +35,21 @@ st.set_page_config(
     layout="wide"
 )
 
+# CSS pentru sidebar mai îngust
+st.markdown("""
+<style>
+    .css-1d391kg {  /* Sidebar container */
+        width: 220px !important;  /* Reduc de la ~350px la 220px */
+    }
+    .css-1lcbmhc {  /* Sidebar content */
+        width: 220px !important;
+    }
+    .css-17eq0hr {  /* Sidebar când e deschis */
+        width: 220px !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # ===================================================================
 # MAPAREA CLASELOR UAV-HSI CU CULORI OPTIMIZATE
 # ===================================================================
