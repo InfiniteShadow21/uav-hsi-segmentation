@@ -867,8 +867,8 @@ if 'rs_data' in st.session_state:
     # Afișare imagine originală și ground truth
     st.subheader("📷 Imagine și Ground Truth Interactive")
 
-    # 3 coloane: RGB, GT, Legenda - proporții optimizate pentru alignment perfect
-    col1, col2, col3 = st.columns([1.0, 1.0, 0.8])
+    # 3 coloane: RGB, GT, Legenda - AJUSTEZ PROPORȚIILE PENTRU MUTARE LA STÂNGA
+    col1, col2, col3 = st.columns([0.9, 0.9, 1.0])  # Fac coloanele 1 și 2 mai mici pentru a împinge imaginile la stânga
 
     with col1:
         st.markdown("**🖼️ Compozit RGB**")
@@ -1048,7 +1048,7 @@ if 'rs_data' in st.session_state:
 
         # AFIȘARE PREDICȚIE VS GROUND TRUTH CU ALIGNMENT PERFECT
         if 'prediction' in st.session_state:
-            col3, col4 = st.columns([1, 1])  # Coloane egale pentru alignment perfect
+            col3, col4 = st.columns([0.9, 0.9])  # Coloane mai mici pentru a împinge imaginile la stânga
 
             with col3:
                 st.markdown(
