@@ -1397,8 +1397,14 @@ if 'rs_data' in st.session_state:
 
                     # Afișează imaginea
                     fig, ax = plt.subplots(figsize=(4, 3))
-                    vmin, vmax = -1, 1 if index_name in ['NDVI', 'NDWI', 'GNDVI'] else (0,
-                                                                                        2 if index_name == 'EVI' else 1)
+                    # Calculează range-urile corecte pentru fiecare index
+                    if index_name in ['NDVI', 'NDWI', 'GNDVI']:
+                        vmin, vmax = -1, 1
+                    elif index_name == 'EVI':
+                        vmin, vmax = 0, 2
+                    else:  # SAVI
+                        vmin, vmax = 0, 1
+
                     im = ax.imshow(index_data, cmap=colormap, vmin=vmin, vmax=vmax, aspect='equal')
                     ax.set_title(f"{index_name}", fontsize=10, pad=5)
                     ax.axis('off')
